@@ -1,5 +1,5 @@
-Here's a detailed line-by-line breakdown of the Python code you've shared. Each line includes an explanation along with the reason for using it.
 
+### QUARTO INTRO
 ```python
 import os
 import datetime
