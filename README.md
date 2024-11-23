@@ -62,6 +62,14 @@ The main objective is to provide a comprehensive analysis of the simulation outp
 6. **Analyze Outputs**: Use InsetChatAnalyzer and MonthlyPfPRAnalyzer to analyze the simulation results.
 
 
+## Step 3: Run the extract_weather.py to run the weather generator and extract the files
+**python3 extract_weather.py**
+
+## Step 4: Run the recreate_weather.py to convert the weather files to csv
+
+## Step 5: Add inputs and outputs to the script that runs the simulation
+
+
 
 
 
