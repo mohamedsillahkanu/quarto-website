@@ -1,0 +1,11 @@
+---
+title: "Home"
+---
+
+# Welcome to the Malaria Simulation Analyzer Website
+
+This website provides tools for analyzing malaria simulation outputs. The analysis focuses on metrics such as population statistics, new clinical cases, parasite prevalence, and vector data.
+
+Use the navigation bar at the top to explore different analysis sections, including the Inset Chart Analysis and Monthly PfPR Analysis.
+
+For detailed documentation, refer to the [README](README.qmd).
