@@ -69,8 +69,6 @@ The main objective is to provide a comprehensive analysis of the simulation outp
 
 ## Step 5: Add inputs and outputs to the script that runs the simulation
 
-### Step-by-step Explanation of the Script
-
 #### 1. Import Required Libraries
 ```python
 import pathlib
@@ -312,7 +310,7 @@ if __name__ == "__main__":
 
 
 
-### Analyzer
+## Step 6: Run the Analyzer
 
 ```python
 import os
