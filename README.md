@@ -69,6 +69,241 @@ The main objective is to provide a comprehensive analysis of the simulation outp
 
 ## Step 5: Add inputs and outputs to the script that runs the simulation
 
+### Step-by-step Explanation of the Script
+
+#### 1. Import Required Libraries
+```python
+import pathlib
+import os
+from functools import partial
+```
+- `pathlib`: Used for file system paths to handle files and directories in a more abstract way.
+- `os`: Provides a way of using operating system-dependent functionality like reading environment variables, managing paths, etc.
+- `partial` from `functools`: Used for creating partial functions that fix a portion of a function's arguments, enabling more convenient use later.
+
+```python
+#idmtools   
+from idmtools.assets import Asset, AssetCollection  
+from idmtools.builders import SimulationBuilder
+from idmtools.core.platform_factory import Platform
+from idmtools.entities.experiment import Experiment
+```
+- **idmtools assets** (`Asset`, `AssetCollection`): Used for managing assets (files) that are required by simulations.
+- **SimulationBuilder**: Helps in setting up different combinations of simulation parameters.
+- **Platform**: Used for configuring the environment (like SLURM) in which the simulation will be run.
+- **Experiment**: Represents an experiment, which is a set of simulations sharing common characteristics.
+
+```python
+#emodpy
+from emodpy.emod_task import EMODTask
+from emodpy.utils import EradicationBambooBuilds
+from emodpy.bamboo import get_model_files
+import emod_api.config.default_from_schema_no_validation as dfs
+import emod_api.campaign as camp
+```
+- **EMODTask**: Represents a task in the EMOD (Epidemiological MODel) simulation.
+- **EradicationBambooBuilds** and **get_model_files**: Utilities for accessing model files from Bamboo, which is a build tool.
+- **default_from_schema_no_validation** (`dfs`): Used for creating default configuration files without validation.
+- **campaign** (`camp`): For creating campaign files that define interventions.
+
+```python
+#emodpy-malaria
+import emodpy_malaria.demographics.MalariaDemographics as Demographics
+```
+- **MalariaDemographics**: For defining the demographic characteristics of the population for malaria simulations.
+
+```python
+import manifest
+```
+- **manifest**: Imports paths and configuration settings needed for running the simulation.
+
+#### 2. Define Simulation Duration and Configuration Function
+```python
+sim_years = 1
+```
+- Defines the number of years (`sim_years`) that the simulation will run. Here, it is set to 1 year.
+
+```python
+def set_param_fn(config):
+    """
+    This function is a callback that is passed to emod-api.config to set config parameters, including the malaria defaults.
+    """
+    import emodpy_malaria.malaria_config as conf
+```
+- **set_param_fn(config)**: Defines a function to customize the configuration settings for the simulation.
+- Imports `malaria_config` for setting malaria-specific configurations.
+
+```python
+    config = conf.set_team_defaults(config, manifest)
+```
+- Sets default parameters for the malaria model based on team-specific requirements using the **manifest** file.
+
+```python
+    ## Add climate data
+    config.parameters.Climate_Model = "CLIMATE_BY_DATA"
+```
+- **Climate_Model** is set to `"CLIMATE_BY_DATA"` to use climate data files as input to the model.
+
+```python
+    config.parameters.Air_Temperature_Filename = os.path.join('climate', 'example_air_temperature_daily.bin')
+    config.parameters.Land_Temperature_Filename = os.path.join('climate', 'example_air_temperature_daily.bin')
+    config.parameters.Rainfall_Filename = os.path.join('climate', 'example_rainfall_daily.bin')
+    config.parameters.Relative_Humidity_Filename = os.path.join('climate', 'example_relative_humidity_daily.bin')
+```
+- Specifies the filenames for different climate parameters (air temperature, land temperature, rainfall, and relative humidity). These files provide essential input to the model for weather conditions.
+
+```python
+    ## Add species
+    conf.add_species(config, manifest, ["gambiae", "arabiensis", "funestus"])
+```
+- Adds mosquito species (`gambiae`, `arabiensis`, and `funestus`) that are involved in malaria transmission.
+
+```python
+    config.parameters.Simulation_Duration = sim_years * 365
+    config.parameters.Run_Number = 0
+```
+- Sets the **simulation duration** in days (1 year × 365 days).
+- **Run_Number** is set to `0` to indicate the first run.
+
+```python
+    return config
+```
+- Returns the modified configuration object.
+
+#### 3. Build Campaign File (`build_camp`)
+```python
+def build_camp():
+    """
+    This function builds a campaign input file for the DTK using emod_api.
+    """
+    camp.set_schema(manifest.schema_file)
+    return camp
+```
+- **build_camp()**: Builds the campaign input file using **emod_api**.
+- Sets the **schema** for the campaign based on the schema file in the **manifest**.
+- Returns the campaign object.
+
+#### 4. Build Demographics File (`build_demog`)
+```python
+def build_demog():
+    """
+    This function builds a demographics input file for the DTK using emod_api.
+    """
+    demog = Demographics.from_template_node(lat=0.4479, lon=33.2026, pop=1000, name="Example_Site")
+```
+- **build_demog()**: Creates a demographics input file using **MalariaDemographics**.
+- **from_template_node()**: Creates a node at the specified latitude and longitude (`lat=0.4479`, `lon=33.2026`) with a population size of `1000`.
+
+```python
+    demog.SetEquilibriumVitalDynamics()
+```
+- Sets **equilibrium vital dynamics** for the population, meaning birth and death rates are balanced.
+
+```python
+    age_distribution = Distributions.AgeDistribution_SSAfrica
+    demog.SetAgeDistribution(age_distribution)
+```
+- Uses an age distribution appropriate for **Sub-Saharan Africa** and sets it for the demographics.
+
+```python
+    return demog
+```
+- Returns the demographics object.
+
+#### 5. General Simulation Function (`general_sim`)
+```python
+def general_sim(selected_platform):
+    """
+    This function is designed to be a parameterized version of the sequence of things we do 
+    every time we run an emod experiment. 
+    """
+    platform = Platform(selected_platform, job_directory=manifest.job_directory, partition='b1139testnode', time='2:00:00', account='b1139', modules=['singularity'], max_running_jobs=10)
+```
+- **general_sim()**: Main function for running the experiment.
+- **Platform()**: Sets up the platform for the experiment. Here, **SLURM** is used as the platform, specifying the job directory, partition name, account, and other parameters.
+
+```python
+    task.set_sif(manifest.SIF_PATH, platform)
+```
+- Sets the **Singularity Image File (SIF)** path for containerized execution on the SLURM platform.
+
+```python
+    task.common_assets.add_directory(os.path.join(manifest.input_dir, "example_weather", "out"), relative_path="climate")
+```
+- Adds the **weather data directory** as an asset to the task, providing necessary climate information for the simulation.
+
+```python
+    add_event_recorder(task, event_list=["HappyBirthday", "Births"], start_day=1, end_day=sim_years * 365, node_ids=[1], min_age_years=0, max_age_years=100)
+```
+- Adds an **event recorder** to the task to monitor specific events (`HappyBirthday`, `Births`) during the simulation for the specified duration.
+
+```python
+    add_malaria_summary_report(task, manifest, start_day=1, end_day=sim_years * 365, reporting_interval=30, age_bins=[0.25, 5, 115], max_number_reports=20, filename_suffix='monthly', pretty_format=True)
+```
+- Adds a **Malaria Summary Report** to the task to generate periodic reports (monthly) on the malaria transmission.
+
+```python
+    print("Creating EMODTask (from files)...")
+```
+- Prints a message indicating the creation of an EMODTask.
+
+```python
+    task = EMODTask.from_default2(
+        config_path="config.json",
+        eradication_path=manifest.eradication_path,
+        campaign_builder=build_camp,
+        schema_path=manifest.schema_file,
+        param_custom_cb=set_param_fn,
+        ep4_custom_cb=None,
+        demog_builder=build_demog,
+        plugin_report=None
+    )
+```
+- **EMODTask.from_default2()**: Creates an EMODTask with specified configuration, eradication executable, campaign, schema, demographics, and parameters.
+
+```python
+    task.set_sif(manifest.SIF_PATH, platform)
+```
+- Sets the **SIF path** again for the task.
+
+```python
+    user = os.getlogin()
+    experiment = Experiment.from_task(task, name= f'{user}_FE_example_basic')
+```
+- **os.getlogin()**: Retrieves the current user.
+- **Experiment.from_task()**: Creates an experiment from the EMODTask.
+
+```python
+    experiment.run(wait_until_done=True, platform=platform)
+```
+- Runs the experiment on the specified platform and waits for it to finish.
+
+```python
+    if not experiment.succeeded:
+        print(f"Experiment {experiment.uid} failed.\n")
+        exit()
+
+    print(f"Experiment {experiment.uid} succeeded.")
+```
+- Checks if the experiment succeeded and prints the result. If it failed, exits the script.
+
+#### 6. Main Execution Block
+```python
+if __name__ == "__main__":
+    import emod_malaria.bootstrap as dtk
+    import pathlib
+
+    dtk.setup(pathlib.Path(manifest.eradication_path).parent)
+```
+- The **main block** sets up the **eradication path** using `bootstrap` from `emod_malaria`.
+
+```python
+    selected_platform = "SLURM_LOCAL"
+    general_sim(selected_platform)
+```
+- Sets the platform to `"SLURM_LOCAL"` and calls the `general_sim()` function to execute the experiment.
+
+---
 
 
 
