@@ -66,6 +66,7 @@ The main objective is to provide a comprehensive analysis of the simulation outp
 **python3 extract_weather.py**
 
 ## Step 4: Run the recreate_weather.py to convert the weather files to csv
+**python3 recreate_weather.py**
 
 ## Step 5: Add inputs and outputs to the script that runs the simulation
 
