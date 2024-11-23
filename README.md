@@ -304,13 +304,10 @@ if __name__ == "__main__":
 ---
 
 
+## Step 6: Run the scrip run_example.py
 
 
-
-
-
-
-## Step 6: Run the Analyzer
+## Step 7: Run the Analyzer
 
 ```python
 import os
