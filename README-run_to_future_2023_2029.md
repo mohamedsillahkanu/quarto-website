@@ -1,4 +1,4 @@
-# README: Setting Up Malaria Simulation with EmodPy-Malaria
+# config_param: Setting Up Malaria Simulation with EmodPy-Malaria
 
 This README explains the components of the Python code used to set up and configure a malaria simulation experiment. The code is organized to create various configurations for interventions, load data, and prepare the suite of simulations. Let's go through it step-by-step.
 
